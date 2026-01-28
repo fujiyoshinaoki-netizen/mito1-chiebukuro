@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>yahoo！知恵袋 水戸一ver</title>
+<style>
+body { font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN",Meiryo,sans-serif; margin:0; background: url("background.jpg") no-repeat center center fixed; background-size: cover; }
+header { background:#7b1e2b; color:white; padding:16px 24px; }
+header h1 { margin:0; font-size:22px; }
+main { max-width:1100px; margin:24px auto; padding:0 16px; }
+.card { background: rgba(255,255,255,0.92); border-radius:8px; padding:16px; margin-bottom:16px; box-shadow:0 2px 6px rgba(0,0,0,0.15); }
+textarea, select { width:100%; padding:8px; border-radius:6px; border:1px solid #ccc; font-size:14px; }
+button { background:#7b1e2b; color:white; border:none; border-radius:6px; padding:6px 12px; cursor:pointer; margin-top:6px; }
+button.gray { background:#666; }
+.question { font-weight:bold; margin-bottom:6px; }
+.meta { font-size:11px; color:#666; }
+.answer { background:#f7f7f7; border-radius:6px; padding:6px; margin-top:6px; }
+.best { border:2px solid gold; }
+.controls { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+.middle { border-left:6px solid #4da3ff; }
+.high { border-left:6px solid #ff9800; }
+.rank { font-size:13px; margin-top:6px; }
+</style>
+</head>
+<body>
+<header>
+<h1>yahoo！知恵袋 水戸一ver</h1>
+<p>水戸一生専用・匿名Q&A</p>
+</header>
+
+<main>
+<!-- ログイン選択画面 -->
+<div class="card" id="loginSelect">
+  <h2>ログイン</h2>
+  <button onclick="showStudentLogin()">生徒用ログイン</button>
+  <button class="gray" onclick="showAdminLogin()">管理者用ログイン</button>
+</div>
+
+<!-- 生徒用ログイン -->
+<div class="card" id="studentLogin" style="display:none">
+  <h2>生徒用ログイン</h2>
+  <select id="studentGrade">
+    <option>中1</option><option>中2</option><option>中3</option>
+    <option>高1</option><option>高2</option><option>高3</option>
+  </select>
+  <input id="studentCode" placeholder="合言葉（生徒用）" />
+  <button onclick="loginStudent()">ログイン</button>
+  <button class="gray" onclick="backToSelect()">戻る</button>
+</div>
+
+<!-- 管理者ログイン -->
+<div class="card admin" id="adminLogin" style="display:none">
+  <h2>管理者ログイン</h2>
+  <input id="adminPass" type="password" placeholder="管理者パスワード" />
+  <button onclick="loginAdmin()">ログイン</button>
+  <button class="gray" onclick="backToSelect()">戻る</button>
+</div>
+
+<!-- 管理者パネル -->
+<div class="card" id="adminPanel" style="display:none">
+  <h3>🛠 管理者パネル</h3>
+  <p>通報が多い投稿の確認・削除ができます</p>
+  <div id="adminList"></div>
+  <button class="gray" onclick="logoutAdmin()">ログアウト</button>
+</div>
+
+<!-- 生徒用メイン -->
+<div id="studentArea" style="display:none">
+  <div class="card">
+    <h3>質問する</h3>
+    <select id="grade"><option>中1</option><option>中2</option><option>中3</option><option>高1</option><option>高2</option><option>高3</option></select>
+    <select id="category"><option>数学</option><option>英語</option><option>行事</option><option>その他</option></select>
+    <textarea id="questionInput" placeholder="質問を書く"></textarea>
+    <button onclick="addQuestion()">投稿</button>
+  </div>
+
+  <div class="controls">
+    <select id="gradeFilter" onchange="render()">
+      <option value="all">全学年</option>
+      <option value="middle">中学生のみ</option>
+      <option value="high">高校生のみ</option>
+    </select>
+    <select id="sort" onchange="render()">
+      <option value="new">新着順</option>
+      <option value="popular">人気順</option>
+    </select>
+  </div>
+
+  <div class="card" id="ranking"></div>
+  <div id="questions"></div>
+</div>
+</main>
+
+<script>
+const NG=['死ね','バカ','殺'];
+const KEY='mito1_super';
+const STUDENT_CODE='mito1chidoukai'; // 生徒用合言葉（仮）
+const ADMIN_PASS='naoki0817fujiyoshi'; // 管理者パス（仮）
+let data=JSON.parse(localStorage.getItem(KEY)||'[]');
+let isAdmin=false;
+
+function save(){localStorage.setItem(KEY,JSON.stringify(data));}
+function hasNG(t){return NG.some(w=>t.includes(w));}
+
+function showStudentLogin(){ loginSelect.style.display='none'; studentLogin.style.display='block'; }
+function showAdminLogin(){ loginSelect.style.display='none'; adminLogin.style.display='block'; }
+function backToSelect(){ studentLogin.style.display='none'; adminLogin.style.display='none'; loginSelect.style.display='block'; }
+
+function loginStudent(){
+  if(studentCode.value!==STUDENT_CODE) return alert('合言葉が違います');
+  studentLogin.style.display='none';
+  studentArea.style.display='block';
+}
+
+function loginAdmin(){
+  if(adminPass.value!==ADMIN_PASS) return alert('パスワードが違います');
+  adminLogin.style.display='none'; adminPanel.style.display='block'; isAdmin=true;
+}
+
+function logoutAdmin(){ adminPanel.style.display='none'; loginSelect.style.display='block'; isAdmin=false; }
+
+function addQuestion(){
+ const q=questionInput.value.trim();
+ if(!q||hasNG(q)) return alert('NGワードまたは空欄');
+ data.unshift({text:q,grade:grade.value,cat:category.value,time:Date.now(),answers:[]});
+ questionInput.value=''; save(); render();
+}
+
+function addAnswer(i){
+ const t=document.getElementById('a'+i).value.trim();
+ if(!t||hasNG(t)) return alert('NGワードまたは空欄');
+ data[i].answers.push({text:t,best:false}); save(); render();
+}
+
+function best(i,j){ data[i].answers.forEach(a=>a.best=false); data[i].answers[j].best=true; save(); render(); }
+
+function renderRanking(){
+ const map={};
+ data.forEach(q=>{ const k=q.grade+'-'+q.cat; map[k]=(map[k]||0)+q.answers.length; });
+ const list=Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,5);
+ ranking.innerHTML='<h3>🔥 学年×カテゴリ 人気ランキング</h3>'+list.map(r=>`<div class=\'rank\'>${r[0]}：${r[1]}件</div>`).join('');
+}
+
+function render(){
+ renderRanking();
+ let arr=[...data];
+ const gf=gradeFilter.value;
+ if(gf==='middle') arr=arr.filter(q=>q.grade.startsWith('中'));
+ if(gf==='high') arr=arr.filter(q=>q.grade.startsWith('高'));
+ if(sort.value==='popular') arr.sort((a,b)=>b.answers.length-a.answers.length);
+ const box=document.getElementById('questions'); box.innerHTML='';
+ arr.forEach((q,i)=>{
+  const level=q.grade.startsWith('中')?'middle':'high';
+  const c=document.createElement('div'); c.className='card '+level;
+  c.innerHTML=`<div class='question'>Q. ${q.text}</div><div class='meta'>${q.grade}｜${q.cat}｜回答 ${q.answers.length}</div><textarea id='a${i}' placeholder='回答を書く'></textarea><button onclick='addAnswer(${i})'>回答</button>${q.answers.map((a,j)=>`<div class='answer ${a.best?'best':''}'>${a.text}<button onclick='best(${i},${j})'>👍</button></div>`).join('')}`;
+  box.appendChild(c);
+ });
+}
+render();
+</script>
+</body>
+</html>
